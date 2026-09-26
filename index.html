@@ -5,21 +5,10 @@
   <title>3D Car Soccer Game</title>
   <style>
     html,body { margin:0; height:100%; background:#111; overflow:hidden; }
-    #ui { position:absolute; top:10px; left:10px; color:#fff; font-family:Arial; }
-    #difficulty { margin-top:8px; }
+    canvas { display:block; }
   </style>
 </head>
 <body>
-<div id="ui">
-  <div id="score">Score: 0 - 0</div>
-  <label>AI Difficulty:
-    <select id="difficulty">
-      <option value="beginner">Beginner</option>
-      <option value="advanced">Advanced</option>
-    </select>
-  </label>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"></script>
 
@@ -102,15 +91,10 @@ const trailMat = new THREE.PointsMaterial({color:0x00ffff,size:0.2});
 const trail = new THREE.Points(trailGeo,trailMat);
 scene.add(trail);
 
-// Score
-let scoreLeft=0, scoreRight=0;
-function updateScore(){document.getElementById('score').textContent=`Score: ${scoreLeft} - ${scoreRight}`;}
-
-// AI logic
+// AI logic (simple chase)
 function aiLogic(){
-  const diff = document.getElementById('difficulty').value;
   const dir = ballBody.position.vsub(aiBody.position);
-  if(diff==='beginner'){ dir.scale(0.3); } else { dir.scale(0.8); }
+  dir.scale(0.5); // moderate difficulty
   aiBody.applyForce(dir, aiBody.position);
 }
 
@@ -161,8 +145,8 @@ function animate(){
   camera.lookAt(carBody.position);
 
   // Goal detection
-  if(ballBody.position.z<-17){ scoreRight++; updateScore(); resetPositions(); }
-  if(ballBody.position.z>17){ scoreLeft++; updateScore(); resetPositions(); }
+  if(ballBody.position.z<-17){ resetPositions(); }
+  if(ballBody.position.z>17){ resetPositions(); }
 
   renderer.render(scene,camera);
 }
