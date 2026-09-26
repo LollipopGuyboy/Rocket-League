@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>3D Car Soccer Advanced</title>
+  <title>3D Car Soccer Game</title>
   <style>
     html,body { margin:0; height:100%; background:#111; overflow:hidden; }
     #ui { position:absolute; top:10px; left:10px; color:#fff; font-family:Arial; }
@@ -24,18 +24,17 @@
 <script src="https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"></script>
 
 <script>
+// Scene + camera
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x202020);
-
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
 camera.position.set(0,8,18);
-
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 // Lights
-scene.add(new THREE.AmbientLight(0xffffff,0.5));
+scene.add(new THREE.AmbientLight(0xffffff,0.6));
 const dir = new THREE.DirectionalLight(0xffffff,1);
 dir.position.set(10,20,10);
 scene.add(dir);
@@ -59,19 +58,19 @@ scene.add(ballMesh);
 const ballBody = new CANNON.Body({mass:1,shape:new CANNON.Sphere(1),position:new CANNON.Vec3(0,2,0)});
 world.addBody(ballBody);
 
-// Car
+// Player car
 const carMesh = new THREE.Mesh(new THREE.BoxGeometry(2,1,4), new THREE.MeshStandardMaterial({color:0x1e90ff}));
 scene.add(carMesh);
 const carBody = new CANNON.Body({mass:6,shape:new CANNON.Box(new CANNON.Vec3(1,0.5,2)),position:new CANNON.Vec3(0,1.2,10)});
 world.addBody(carBody);
 
-// AI Car
+// AI car
 const aiMesh = new THREE.Mesh(new THREE.BoxGeometry(2,1,4), new THREE.MeshStandardMaterial({color:0xff4444}));
 scene.add(aiMesh);
 const aiBody = new CANNON.Body({mass:6,shape:new CANNON.Box(new CANNON.Vec3(1,0.5,2)),position:new CANNON.Vec3(0,1.2,-10)});
 world.addBody(aiBody);
 
-// Goal posts with nets
+// Goals with posts + nets
 function makeGoal(z){
   const postMat = new THREE.MeshStandardMaterial({color:0xffffff});
   const leftPost = new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,3),postMat);
@@ -94,7 +93,7 @@ const keys={};
 window.addEventListener('keydown',e=>keys[e.code]=true);
 window.addEventListener('keyup',e=>keys[e.code]=false);
 
-// Boost trail particles
+// Boost trail
 const trailGeo = new THREE.BufferGeometry();
 const trailCount = 100;
 const positions = new Float32Array(trailCount*3);
@@ -107,23 +106,29 @@ scene.add(trail);
 let scoreLeft=0, scoreRight=0;
 function updateScore(){document.getElementById('score').textContent=`Score: ${scoreLeft} - ${scoreRight}`;}
 
-// AI difficulty
+// AI logic
 function aiLogic(){
   const diff = document.getElementById('difficulty').value;
-  const target = ballBody.position.clone();
-  const dir = target.vsub(aiBody.position);
-  if(diff==='beginner'){
-    dir.scale(0.5); // slower reaction
-  } else {
-    dir.scale(1.2); // aggressive
-  }
+  const dir = ballBody.position.vsub(aiBody.position);
+  if(diff==='beginner'){ dir.scale(0.3); } else { dir.scale(0.8); }
   aiBody.applyForce(dir, aiBody.position);
+}
+
+// Reset after goal
+function resetPositions(){
+  ballBody.position.set(0,2,0);
+  ballBody.velocity.set(0,0,0);
+  carBody.position.set(0,1.2,10);
+  carBody.velocity.set(0,0,0);
+  aiBody.position.set(0,1.2,-10);
+  aiBody.velocity.set(0,0,0);
 }
 
 // Game loop
 function animate(){
   requestAnimationFrame(animate);
-  // Controls
+
+  // Player controls
   const force=150;
   if(keys['KeyW']) carBody.applyForce(new CANNON.Vec3(0,0,-force),carBody.position);
   if(keys['KeyS']) carBody.applyForce(new CANNON.Vec3(0,0,force),carBody.position);
@@ -144,15 +149,20 @@ function animate(){
   }
 
   aiLogic();
-
   world.step(1/60);
 
+  // Sync meshes
   ballMesh.position.copy(ballBody.position);
   carMesh.position.copy(carBody.position);
   aiMesh.position.copy(aiBody.position);
 
+  // Camera chase
   camera.position.lerp(new THREE.Vector3(carBody.position.x,carBody.position.y+6,carBody.position.z+12),0.1);
   camera.lookAt(carBody.position);
+
+  // Goal detection
+  if(ballBody.position.z<-17){ scoreRight++; updateScore(); resetPositions(); }
+  if(ballBody.position.z>17){ scoreLeft++; updateScore(); resetPositions(); }
 
   renderer.render(scene,camera);
 }
